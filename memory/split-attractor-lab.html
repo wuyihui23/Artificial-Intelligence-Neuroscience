@@ -1,0 +1,343 @@
+<title>Split Attractor Lab</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: lab-notebook page — header, then two "rigs" (persistence model, write-gate ring), each = explanation column + instrument panel */
+:root{
+  --bg:#eef1f4; --panel:#ffffff; --ink:#18212b; --muted:#5b6876; --line:#d3dae2;
+  --pfg:#0f7c82; --hdk:#c2620a; --inh:#b23a48; --latch:#6b4fa6; --trace:#18212b;
+  --heat0:#f6f8fa;
+  --f-display:"Archivo","Helvetica Neue",Arial,sans-serif;
+  --f-body:"Atkinson Hyperlegible","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --panel:#18202a; --ink:#e4e9ef; --muted:#93a1b0; --line:#2b3643;
+  --pfg:#3cc3c9; --hdk:#f29a45; --inh:#ec6b7a; --latch:#a68be0; --trace:#e4e9ef; --heat0:#141b23; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --panel:#18202a; --ink:#e4e9ef; --muted:#93a1b0; --line:#2b3643;
+  --pfg:#3cc3c9; --hdk:#f29a45; --inh:#ec6b7a; --latch:#a68be0; --trace:#e4e9ef; --heat0:#141b23; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:28px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:36px}
+header{display:flex;flex-direction:column;gap:8px;max-width:72ch}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-stretch:80%;font-weight:800;font-size:clamp(30px,5vw,48px);line-height:1.02;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-stretch:85%;font-weight:700;font-size:24px;line-height:1.15;margin:0;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:15px;margin:0;letter-spacing:.01em}
+p{margin:0}
+.lede{color:var(--muted);font-size:16px}
+.rig{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:880px){.rig{grid-template-columns:minmax(0,1fr)}}
+.notes{display:flex;flex-direction:column;gap:12px;min-width:0}
+.notes ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px}
+.eq{font-family:var(--f-mono);font-size:12.5px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;overflow-x:auto;white-space:pre;line-height:1.6}
+.instrument{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 18px}
+.ctl{display:flex;flex-direction:column;gap:4px;min-width:0}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.ctl output{font-family:var(--f-mono);color:var(--ink);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+.btnrow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font-family:var(--f-body);font-size:14px;font-weight:700;border:1px solid var(--line);background:var(--bg);color:var(--ink);
+  border-radius:6px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--pfg);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+button.gate{min-width:250px;text-align:left}
+button.gate[data-state="inhibited"]{background:var(--inh);border-color:var(--inh);color:#fff}
+button.gate[data-state="released"]{background:var(--hdk);border-color:var(--hdk);color:#fff}
+.readouts{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--f-mono);font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip b{font-weight:600}
+.chip.state-latch{border-color:var(--latch);color:var(--latch)}
+.chip.state-decay{border-color:var(--pfg);color:var(--pfg)}
+.chip.state-fast{border-color:var(--muted);color:var(--muted)}
+.plots{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:14px}
+.plots.ring{grid-template-columns:minmax(0,300px) minmax(0,1fr)}
+@media (max-width:640px){.plots,.plots.ring{grid-template-columns:minmax(0,1fr)}}
+figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+figcaption{font-size:12.5px;color:var(--muted)}
+canvas{width:100%;display:block;border-radius:6px;background:var(--heat0)}
+.legend{display:flex;flex-wrap:wrap;gap:12px;font-size:12.5px;color:var(--muted)}
+.sw{display:inline-block;width:12px;height:12px;border-radius:2px;vertical-align:-2px;margin-right:5px}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+footer{font-size:12.5px;color:var(--muted);max-width:80ch}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Lanz et al., Nature 2026 · fan-shaped body model</span>
+  <h1>Split Attractor Lab</h1>
+  <p class="lede">Two simulations of the paper's rate model. The first shows why <b>slow excitation with fast inhibition</b> makes persistent activity robust. The second shows how <b>inhibiting one half of the split h∆K–PFG ring</b> switches the circuit between following the compass and storing a goal.</p>
+</header>
+
+<!-- ===================== RIG 1 ===================== -->
+<section class="rig" aria-labelledby="r1">
+  <div class="notes">
+    <span class="eyebrow">Rig 1 · Extended Data Fig. 7</span>
+    <h2 id="r1">Persistence needs slow excitation</h2>
+    <p>One excitatory unit (all h∆K + PFG lumped) excites itself and an inhibitory unit, which inhibits it back. Only the synaptic outputs <i>U</i> (excitation) and <i>V</i> (inhibition) are kept as variables:</p>
+    <div class="eq">U' = a_exc·( F(W_EE·U − W_IE·V + I) − U )
+V' = a_inh·( max(U, 0) − V )
+
+F clips to [0, 1]; 1/a = synaptic decay time</div>
+    <p>When inhibition is fast enough to track excitation (V ≈ U), the loop behaves like one leaky unit with net gain <i>g</i> = W_EE − W_IE. After the input ends, activity decays with</p>
+    <div class="eq">τ ≈ 1 / ( a_exc · (1 − g) )     for g &lt; 1
+g ≥ 1  →  activity latches at saturation</div>
+    <ul>
+      <li>τ scales with <b>1/a_exc</b>. Slow excitation (a = 0.64, decay 1.6 s) stretches every decay about 7× compared with fast excitation (a = 4.63).</li>
+      <li>So the band of gains that gives seconds-long persistence is about 7× wider. Small weight changes tune τ smoothly instead of flipping the network between "transient" and "stuck on".</li>
+      <li>With fast excitation, inhibition also lags behind and the loop overshoots, which narrows the useful band further.</li>
+    </ul>
+  </div>
+
+  <div class="instrument" aria-label="Two-unit persistence simulation">
+    <div class="btnrow" role="group" aria-label="Excitatory synapse preset">
+      <button id="presetSlow" aria-pressed="true">Slow excitation (a = 0.64)</button>
+      <button id="presetFast" aria-pressed="false">Fast excitation (a = 4.63)</button>
+      <button id="pulse">Give 2 s input pulse</button>
+    </div>
+    <div class="controls">
+      <div class="ctl"><label for="aexc">a_exc, excitation <output id="aexcO"></output></label><input id="aexc" type="range" min="0.2" max="6" step="0.01" value="0.64"></div>
+      <div class="ctl"><label for="ainh">a_inh, inhibition <output id="ainhO"></output></label><input id="ainh" type="range" min="0.2" max="6" step="0.01" value="4.63"></div>
+      <div class="ctl"><label for="wee">W_EE <output id="weeO"></output></label><input id="wee" type="range" min="0" max="6" step="0.01" value="2.9"></div>
+      <div class="ctl"><label for="wie">W_IE <output id="wieO"></output></label><input id="wie" type="range" min="0" max="4" step="0.01" value="2"></div>
+    </div>
+    <div class="readouts">
+      <span class="chip">net gain g = <b id="gO"></b></span>
+      <span class="chip">predicted τ = <b id="tauPredO"></b></span>
+      <span class="chip" id="stateChip"></span>
+    </div>
+    <div class="plots">
+      <figure>
+        <canvas id="trace" height="230" aria-label="Activity over time"></canvas>
+        <figcaption><span class="sw" style="background:var(--pfg)"></span>U excitation · <span class="sw" style="background:var(--inh)"></span>V inhibition · shaded = input on. Last 30 s.</figcaption>
+      </figure>
+      <figure>
+        <canvas id="map" height="230" aria-label="Decay time map"></canvas>
+        <figcaption>Simulated decay time τ for every W_EE × W_IE at the current a values. Teal shades: 0.1 s (pale) to 30 s (dark). <span class="sw" style="background:var(--latch)"></span>latched (never decays). Ring = your setting. Click to move it.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== RIG 2 ===================== -->
+<section class="rig" aria-labelledby="r2">
+  <div class="notes">
+    <span class="eyebrow">Rig 2 · Fig. 5 · equations 1–7</span>
+    <h2 id="r2">Disinhibition writes the heading</h2>
+    <p>30 h∆K and 18 PFG units sit around the fan-shaped body ring and excite each other with Gaussian weights (σ = 0.25 rad). One global inhibitory unit, driven by all of them, inhibits both. Only PFG receives the compass bump, at 1/6 of the recurrent strength.</p>
+    <div class="eq">τ·u_h∆K' = −10·u_h∆K + exc·W·U_PFG − U_inh + I_h∆K
+τ·u_PFG'  = −10·u_PFG  + exc·W·U_h∆K − U_inh + compass
+U'' = −(a+b)·U' + a·b·( F(u) − U )   (alpha synapse)</div>
+    <ul>
+      <li><b>FB5V inhibition on</b> (I_h∆K = −15, turning): h∆K is silent, so the loop is open. PFG shows a weak bump that <b>follows</b> the compass.</li>
+      <li><b>Released</b> (I_h∆K = 0, odour run): the loop closes. Recurrence is about 6× stronger than the compass input, so the bump grows and <b>locks</b> where the heading was at the moment of release.</li>
+      <li>Inhibit h∆K again and the stored bump fades over a few seconds (slow PFG synapses), then PFG follows the compass again.</li>
+    </ul>
+    <p>Try it: let the compass wander, press release, and watch the PFG kymograph stop tracking the heading line.</p>
+  </div>
+
+  <div class="instrument" aria-label="Ring attractor write-gate simulation">
+    <div class="btnrow">
+      <button id="gate" class="gate" data-state="inhibited">FB5V inhibition ON · h∆K silenced</button>
+      <button id="resetRing">Reset network</button>
+      <label class="check"><input id="wander" type="checkbox" checked> Compass wanders on its own</label>
+    </div>
+    <div class="controls">
+      <div class="ctl"><label for="exc">Recurrent strength exc <output id="excO"></output></label><input id="exc" type="range" min="0" max="14" step="0.1" value="10"></div>
+      <div class="ctl"><label for="cmp">Compass / recurrence <output id="cmpO"></output></label><input id="cmp" type="range" min="0.05" max="1" step="0.01" value="0.167"></div>
+      <div class="ctl"><label for="spd">Turning speed <output id="spdO"></output></label><input id="spd" type="range" min="0" max="2" step="0.05" value="0.8"></div>
+    </div>
+    <div class="readouts">
+      <span class="chip">heading <b id="headO"></b></span>
+      <span class="chip">PFG bump <b id="pfgPosO"></b></span>
+      <span class="chip">h∆K amplitude <b id="hdkAmpO"></b></span>
+      <span class="chip" id="modeChip"></span>
+    </div>
+    <div class="plots ring">
+      <figure>
+        <canvas id="ring" height="300" aria-label="Ring of PFG and h∆K units"></canvas>
+        <figcaption>Outer ring PFG, inner ring h∆K. Black needle = compass heading. Drag on the ring to steer.</figcaption>
+      </figure>
+      <figure>
+        <canvas id="kymo" height="300" aria-label="Kymographs of PFG and h∆K activity"></canvas>
+        <figcaption>Activity across FB columns over the last 20 s (newest at right). Line = heading. Red band = h∆K inhibited.</figcaption>
+      </figure>
+    </div>
+    <div class="legend"><span><span class="sw" style="background:var(--pfg)"></span>PFG</span><span><span class="sw" style="background:var(--hdk)"></span>h∆K</span><span><span class="sw" style="background:var(--inh)"></span>FB5V inhibition on</span></div>
+  </div>
+</section>
+
+<footer>Model and parameters from the paper's Methods: τ = 1, leak α = 10, slow synapse a = 0.64, fast a = 4.63, rise b = 25, Euler step 1 ms. The gate level (−15), exc = 10 and global inhibition weight 8 were tuned here so the bump stays narrow and the gate fully silences h∆K; the paper used exc ≤ 7 and −5 with its own weight scaling. The model does not include the short-term depression of inhibition seen in the recordings.</footer>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let C={};
+function readColors(){const s=getComputedStyle(document.documentElement);
+  ['bg','panel','ink','muted','line','pfg','hdk','inh','latch','trace','heat0'].forEach(k=>C[k]=s.getPropertyValue('--'+k).trim());}
+readColors();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{readColors();mapDirty=true;});
+new MutationObserver(()=>{readColors();mapDirty=true;}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+function hex2rgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255];}
+function mix(a,b,t){const A=hex2rgb(a),B=hex2rgb(b);return `rgb(${A.map((v,i)=>Math.round(v+(B[i]-v)*t)).join(',')})`;}
+function fit(cv){if(!cv.dataset.h){cv.dataset.h=cv.getAttribute('height');cv.style.height=cv.dataset.h+'px';}
+  const base=+cv.dataset.h,d=devicePixelRatio||1,r=cv.getBoundingClientRect();const w=Math.max(10,Math.round(r.width*d)),h=Math.round(base*d);
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}const ctx=cv.getContext('2d');ctx.setTransform(1,0,0,1,0,0);return{ctx,W:cv.width,H:cv.height,d};}
+
+/* ---------- Rig 1: two-unit model ---------- */
+const P1={aexc:.64,ainh:4.63,wee:2.9,wie:2};
+const Fe=x=>x<0?0:x>1?1:x, Fi=x=>x<0?0:x;
+let U=0,V=0,inputUntil=-1,t1=0;const hist=[];const HMAX=30;
+function sync1(){
+  P1.aexc=+$('aexc').value;P1.ainh=+$('ainh').value;P1.wee=+$('wee').value;P1.wie=+$('wie').value;
+  $('aexcO').textContent=P1.aexc.toFixed(2)+' · '+(1/P1.aexc).toFixed(2)+' s';
+  $('ainhO').textContent=P1.ainh.toFixed(2)+' · '+(1/P1.ainh).toFixed(2)+' s';
+  $('weeO').textContent=P1.wee.toFixed(2);$('wieO').textContent=P1.wie.toFixed(2);
+  const g=P1.wee-P1.wie;$('gO').textContent=g.toFixed(2);
+  const chip=$('stateChip');
+  if(g>=1){$('tauPredO').textContent='∞';chip.textContent='latched: stays on';chip.className='chip state-latch';}
+  else{const tau=1/(P1.aexc*(1-g));$('tauPredO').textContent=tau<100?tau.toFixed(2)+' s':'>100 s';
+    if(tau>=1){chip.textContent='persistent: decays slowly';chip.className='chip state-decay';}
+    else{chip.textContent='transient: decays fast';chip.className='chip state-fast';}}
+  $('presetSlow').setAttribute('aria-pressed',Math.abs(P1.aexc-.64)<.005);
+  $('presetFast').setAttribute('aria-pressed',Math.abs(P1.aexc-4.63)<.005);
+}
+function simTau(aexc,ainh,wee,wie){let u=0,v=0;const dt=0.004;
+  for(let k=0;k<500;k++){const du=aexc*(Fe(wee*u-wie*v+1)-u),dv=ainh*(Fi(u)-v);u+=dt*du;v+=dt*dv;}
+  const u0=u;if(u0<0.01)return 0;const thr=u0/Math.E;
+  for(let k=0;k<7500;k++){const du=aexc*(Fe(wee*u-wie*v)-u),dv=ainh*(Fi(u)-v);u+=dt*du;v+=dt*dv;if(u<thr)return k*dt;}
+  return Infinity;}
+const MX=48,MY=32;let tauGrid=null,mapDirty=true,gridKey='';
+function computeGrid(){const key=P1.aexc+'|'+P1.ainh;if(key===gridKey&&tauGrid)return;gridKey=key;
+  tauGrid=new Float32Array(MX*MY);
+  for(let j=0;j<MY;j++)for(let i=0;i<MX;i++){const wee=6*(i+.5)/MX,wie=4*(j+.5)/MY;tauGrid[j*MX+i]=simTau(P1.aexc,P1.ainh,wee,wie);}
+  mapDirty=true;}
+let gridTimer=null;function scheduleGrid(){clearTimeout(gridTimer);gridTimer=setTimeout(()=>{computeGrid();},120);}
+function drawMap(){const cv=$('map');const{ctx,W,H,d}=fit(cv);const L=34*d,B=26*d,T=8*d,R=8*d;const pw=W-L-R,ph=H-T-B;
+  ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);
+  if(tauGrid){const cw=pw/MX,ch=ph/MY;
+    for(let j=0;j<MY;j++)for(let i=0;i<MX;i++){const tau=tauGrid[j*MX+i];let col;
+      if(!isFinite(tau))col=C.latch;else{const x=Math.max(0,Math.min(1,(Math.log10(Math.max(tau,.1))+1)/(Math.log10(30)+1)));col=mix(C.heat0,C.pfg,.08+.92*x);}
+      ctx.fillStyle=col;ctx.fillRect(L+i*cw,T+ph-(j+1)*ch,Math.ceil(cw)+.5,Math.ceil(ch)+.5);}}
+  // g=1 line
+  ctx.strokeStyle=C.ink;ctx.setLineDash([4*d,3*d]);ctx.lineWidth=1*d;ctx.beginPath();
+  const X=w=>L+pw*w/6,Y=w=>T+ph-ph*w/4;ctx.moveTo(X(1),Y(0));ctx.lineTo(X(5),Y(4));ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle=C.ink;ctx.font=`${11*d}px ${getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace'}`;
+  ctx.save();ctx.translate(X(1.9),Y(0.9));ctx.rotate(-Math.atan2(ph/4,pw/6));ctx.fillText('g = 1',0,-4*d);ctx.restore();
+  // axes
+  ctx.fillStyle=C.muted;ctx.textAlign='center';for(let w=0;w<=6;w+=1)ctx.fillText(w,X(w),H-B+14*d);ctx.fillText('W_EE',L+pw/2,H-3*d);
+  ctx.textAlign='right';for(let w=0;w<=4;w+=1)ctx.fillText(w,L-5*d,Y(w)+4*d);
+  ctx.save();ctx.translate(11*d,T+ph/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('W_IE',0,0);ctx.restore();
+  // marker
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2*d;ctx.beginPath();ctx.arc(X(P1.wee),Y(P1.wie),6*d,0,7);ctx.stroke();
+  ctx.strokeStyle=C.panel;ctx.lineWidth=1*d;ctx.beginPath();ctx.arc(X(P1.wee),Y(P1.wie),8*d,0,7);ctx.stroke();
+  mapDirty=false;}
+$('map').addEventListener('click',e=>{const r=e.currentTarget.getBoundingClientRect();const L=34,B=26,T=8,R=8;
+  const wee=6*(e.clientX-r.left-L)/(r.width-L-R),wie=4*(1-(e.clientY-r.top-T)/(r.height-T-B));
+  if(wee<0||wee>6||wie<0||wie>4)return;$('wee').value=wee.toFixed(2);$('wie').value=wie.toFixed(2);sync1();mapDirty=true;});
+function step1(dt){const I=t1<inputUntil?1:0;const du=P1.aexc*(Fe(P1.wee*U-P1.wie*V+I)-U),dv=P1.ainh*(Fi(U)-V);U+=dt*du;V+=dt*dv;t1+=dt;}
+function drawTrace(){const cv=$('trace');const{ctx,W,H,d}=fit(cv);const L=30*d,B=22*d,T=10*d,R=8*d;const pw=W-L-R,ph=H-T-B;
+  ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);const t0=t1-HMAX;const X=t=>L+pw*(t-t0)/HMAX,Y=v=>T+ph*(1-v);
+  ctx.strokeStyle=C.line;ctx.lineWidth=1*d;for(let v=0;v<=1;v+=.25){ctx.beginPath();ctx.moveTo(L,Y(v));ctx.lineTo(W-R,Y(v));ctx.stroke();}
+  // input shading
+  ctx.fillStyle=mix(C.panel,C.hdk,.18);let on=null;
+  for(const p of hist){if(p[3]&&on===null)on=p[0];if(!p[3]&&on!==null){ctx.fillRect(X(on),T,X(p[0])-X(on),ph);on=null;}}
+  if(on!==null)ctx.fillRect(X(on),T,X(t1)-X(on),ph);
+  const line=(k,col)=>{ctx.strokeStyle=col;ctx.lineWidth=2*d;ctx.beginPath();hist.forEach((p,i)=>{const x=X(p[0]),y=Y(Math.min(1.05,p[k]));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();};
+  line(2,C.inh);line(1,C.pfg);
+  ctx.fillStyle=C.muted;ctx.font=`${11*d}px monospace`;ctx.textAlign='right';[0,.5,1].forEach(v=>ctx.fillText(v,L-5*d,Y(v)+4*d));
+  ctx.textAlign='center';for(let s=Math.ceil(t0/5)*5;s<=t1;s+=5){if(s<0)continue;ctx.fillText(s+' s',X(s),H-6*d);}
+}
+['aexc','ainh'].forEach(id=>$(id).addEventListener('input',()=>{sync1();scheduleGrid();}));
+['wee','wie'].forEach(id=>$(id).addEventListener('input',()=>{sync1();mapDirty=true;}));
+$('presetSlow').onclick=()=>{$('aexc').value=.64;sync1();scheduleGrid();};
+$('presetFast').onclick=()=>{$('aexc').value=4.63;sync1();scheduleGrid();};
+$('pulse').onclick=()=>{inputUntil=t1+2;};
+
+/* ---------- Rig 2: ring model ---------- */
+const NK=30,NP=18,TAU2=Math.PI*2;
+const thK=Array.from({length:NK},(_,i)=>TAU2*i/NK),thP=Array.from({length:NP},(_,i)=>TAU2*i/NP);
+const angd=(a,b)=>{let x=(a-b)%TAU2;if(x>Math.PI)x-=TAU2;if(x<-Math.PI)x+=TAU2;return x;};
+const gw=(a,b)=>{const d=angd(a,b);return Math.exp(-d*d/(2*.0625));};
+const WPK=thK.map(a=>thP.map(b=>gw(a,b))),WKP=thP.map(a=>thK.map(b=>gw(a,b)));
+const S={exc:10,cmp:.167,spd:.8,inhibited:true,head:0,omega:0,wander:true};
+let uK,uP,ui,K,dK,Pp,dP,I_,dI,t2,kymo;
+function resetRing(){uK=new Float64Array(NK);uP=new Float64Array(NP);ui=0;K=new Float64Array(NK);dK=new Float64Array(NK);Pp=new Float64Array(NP);dP=new Float64Array(NP);I_=0;dI=0;t2=0;kymo=[];}
+resetRing();
+const aS=.64,aF=4.63,bR=25,WINH=8;
+function step2(dt){
+  if(S.wander){S.omega+=dt*(-S.omega/1.5)+Math.sqrt(dt)*S.spd*1.4*(Math.random()*2-1)*1.73;S.head=(S.head+dt*S.omega+TAU2)%TAU2;}
+  const A=S.exc*S.cmp,IK=S.inhibited?-15:0;
+  for(let i=0;i<NK;i++){let s=0;const w=WPK[i];for(let j=0;j<NP;j++)s+=w[j]*Pp[j];uK[i]+=dt*(-10*uK[i]+S.exc*s-WINH*I_+IK);}
+  for(let j=0;j<NP;j++){let s=0;const w=WKP[j];for(let i=0;i<NK;i++)s+=w[i]*K[i];uP[j]+=dt*(-10*uP[j]+S.exc*s-WINH*I_+A*(Math.cos(thP[j]-S.head)+1));}
+  let tot=0;for(let i=0;i<NK;i++)tot+=K[i];for(let j=0;j<NP;j++)tot+=Pp[j];ui+=dt*(-10*ui+1*tot);
+  for(let i=0;i<NK;i++){const dd=-(aS+bR)*dK[i]+aS*bR*(Fe(uK[i])-K[i]);dK[i]+=dt*dd;K[i]+=dt*dK[i];}
+  for(let j=0;j<NP;j++){const dd=-(aS+bR)*dP[j]+aS*bR*(Fe(uP[j])-Pp[j]);dP[j]+=dt*dd;Pp[j]+=dt*dP[j];}
+  {const dd=-(aF+bR)*dI+aF*bR*(Fi(ui)-I_);dI+=dt*dd;I_+=dt*dI;}
+  t2+=dt;}
+function vecPos(arr,th){let x=0,y=0,m=0;for(let i=0;i<arr.length;i++){x+=arr[i]*Math.cos(th[i]);y+=arr[i]*Math.sin(th[i]);if(arr[i]>m)m=arr[i];}return{pos:(Math.atan2(y,x)+TAU2)%TAU2,max:m};}
+const deg=r=>Math.round(r*180/Math.PI)+'°';
+function drawRing(){const cv=$('ring');const{ctx,W,H,d}=fit(cv);ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);
+  const cx=W/2,cy=H/2,R=Math.min(W,H)/2-14*d,rP=R*.86,rK=R*.58;
+  ctx.strokeStyle=C.line;ctx.lineWidth=1*d;[rP,rK].forEach(r=>{ctx.beginPath();ctx.arc(cx,cy,r,0,7);ctx.stroke();});
+  const dot=(r,a,v,col,sz)=>{ctx.fillStyle=mix(C.heat0,col,.12+.88*Math.min(1,v));ctx.beginPath();ctx.arc(cx+r*Math.cos(a-Math.PI/2),cy+r*Math.sin(a-Math.PI/2),sz,0,7);ctx.fill();};
+  thP.forEach((a,j)=>dot(rP,a,Pp[j],C.pfg,9*d));thK.forEach((a,i)=>dot(rK,a,K[i],C.hdk,6.5*d));
+  // heading needle
+  const hx=cx+R*Math.cos(S.head-Math.PI/2),hy=cy+R*Math.sin(S.head-Math.PI/2);
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2.5*d;ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(hx,hy);ctx.stroke();
+  ctx.fillStyle=C.ink;ctx.beginPath();ctx.arc(cx,cy,3.5*d,0,7);ctx.fill();
+  ctx.fillStyle=C.muted;ctx.font=`${10.5*d}px monospace`;ctx.textAlign='center';ctx.fillText('PFG',cx,cy-rP+22*d);ctx.fillText('h∆K',cx,cy-rK+18*d);}
+function drawKymo(){const cv=$('kymo');const{ctx,W,H,d}=fit(cv);ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);
+  const L=34*d,R=6*d,gap=14*d,top=8*d,bot=20*d;const ph=(H-top-bot-gap)/2,pw=W-L-R;const span=20;const t0=t2-span;
+  const X=t=>L+pw*(t-t0)/span;
+  const panel=(y0,idx,n,col,label)=>{const cw=pw/(span/0.05)+1,rh=ph/n;
+    for(const f of kymo){const x=X(f.t);if(x<L-cw)continue;if(f.inh){ctx.fillStyle=mix(C.panel,C.inh,.10);ctx.fillRect(x,y0,cw,ph);}
+      const arr=f[idx];for(let i=0;i<n;i++){const v=arr[i];if(v<.02)continue;ctx.fillStyle=mix(C.heat0,col,Math.min(1,.15+.85*v));ctx.fillRect(x,y0+ph-(i+1)*rh,cw,rh+.5);}}
+    // heading line
+    ctx.strokeStyle=C.ink;ctx.lineWidth=1.4*d;ctx.beginPath();let prev=null;
+    for(const f of kymo){const x=X(f.t),y=y0+ph-ph*f.h/TAU2;if(prev!==null&&Math.abs(f.h-prev)<Math.PI)ctx.lineTo(x,y);else ctx.moveTo(x,y);prev=f.h;}ctx.stroke();
+    ctx.strokeStyle=C.line;ctx.lineWidth=1*d;ctx.strokeRect(L,y0,pw,ph);
+    ctx.fillStyle=C.muted;ctx.font=`${10.5*d}px monospace`;ctx.textAlign='right';ctx.fillText(label,L-4*d,y0+12*d);ctx.fillText('0°',L-4*d,y0+ph);ctx.fillText('360°',L-4*d,y0+24*d);};
+  panel(top,'P',NP,C.pfg,'PFG');panel(top+ph+gap,'K',NK,C.hdk,'h∆K');
+  ctx.fillStyle=C.muted;ctx.textAlign='center';ctx.font=`${10.5*d}px monospace`;for(let s=Math.ceil(t0/5)*5;s<=t2;s+=5){if(s<0)continue;ctx.fillText(Math.round(s)+' s',X(s),H-5*d);}}
+function sync2(){S.exc=+$('exc').value;S.cmp=+$('cmp').value;S.spd=+$('spd').value;S.wander=$('wander').checked;
+  $('excO').textContent=S.exc.toFixed(1);$('cmpO').textContent=S.cmp.toFixed(2)+(Math.abs(S.cmp-.167)<.005?' = 1/6':'');$('spdO').textContent=S.spd.toFixed(2);}
+['exc','cmp','spd','wander'].forEach(id=>$(id).addEventListener('input',sync2));
+function setGate(inh){S.inhibited=inh;const b=$('gate');b.dataset.state=inh?'inhibited':'released';
+  b.textContent=inh?'FB5V inhibition ON · h∆K silenced':'Inhibition released · writing goal';}
+$('gate').onclick=()=>setGate(!S.inhibited);
+$('resetRing').onclick=()=>{resetRing();};
+// drag to steer
+(function(){const cv=$('ring');let drag=false;const set=e=>{const r=cv.getBoundingClientRect();const x=e.clientX-r.left-r.width/2,y=e.clientY-r.top-r.height/2;S.head=(Math.atan2(y,x)+Math.PI/2+TAU2)%TAU2;S.omega=0;};
+  cv.addEventListener('pointerdown',e=>{drag=true;cv.setPointerCapture(e.pointerId);set(e);});cv.addEventListener('pointermove',e=>{if(drag)set(e);});
+  cv.addEventListener('pointerup',()=>drag=false);cv.style.touchAction='none';})();
+function readouts2(){const h=deg(S.head);$('headO').textContent=h;const p=vecPos(Pp,thP),k=vecPos(K,thK);
+  $('pfgPosO').textContent=p.max>.05?deg(p.pos)+' · amp '+p.max.toFixed(2):'none';$('hdkAmpO').textContent=k.max.toFixed(2);
+  const chip=$('modeChip');if(k.max>.3){chip.textContent='storing: bump locked';chip.className='chip state-latch';}
+  else{chip.textContent='following: PFG tracks compass';chip.className='chip state-decay';}}
+
+/* ---------- loop ---------- */
+sync1();sync2();computeGrid();setGate(true);
+// warm start: seed a pulse in rig 1 so the trace is not empty
+inputUntil=2;for(let k=0;k<6000;k++){step1(.001);if(k%50===0)hist.push([t1,U,V,t1<inputUntil]);}
+for(let k=0;k<3000;k++){step2(.001);if(k%50===0)kymo.push({t:t2,h:S.head,inh:S.inhibited,P:Float32Array.from(Pp),K:Float32Array.from(K)});}
+let last=performance.now(),acc1=0,acc2=0;
+function frame(now){const el=Math.min(.05,(now-last)/1000);last=now;
+  const steps=Math.round(el/.001);
+  for(let s=0;s<steps;s++){step1(.001);acc1+=.001;if(acc1>=.05){acc1=0;hist.push([t1,U,V,t1<inputUntil]);if(hist.length>HMAX/.05+2)hist.shift();}
+    step2(.001);acc2+=.001;if(acc2>=.05){acc2=0;kymo.push({t:t2,h:S.head,inh:S.inhibited,P:Float32Array.from(Pp),K:Float32Array.from(K)});if(kymo.length>20/.05+2)kymo.shift();}}
+  drawTrace();if(mapDirty)drawMap();drawRing();drawKymo();readouts2();
+  requestAnimationFrame(frame);}
+addEventListener('resize',()=>{mapDirty=true;});
+if(reduce){S.spd=Math.min(S.spd,.4);}
+requestAnimationFrame(frame);
+})();
+</script>
