@@ -13,3 +13,11 @@ Added to `memory/`:
 - `split_attractor_two_unit.py`: reproduces the decay-time scan of the two-unit model (slow vs fast excitation).
 
 Key idea: slow recurrent excitation makes persistence robust and tuneable; splitting the attractor into two populations lets inhibition of h∆K act as a write gate for the heading carried by PFG.
+
+# motion-detection
+
+## Update 2026-11-17: motion detector simulation
+
+Added `motion-detection/motion-detector-lab.html` (open in a browser): one moving stimulus (grating, bar, random dots, reverse-phi dots, counterphase flicker) drives a fly-style Reichardt correlator and a primate-style motion-energy model side by side, with single-detector signals, population kymographs and spatial/temporal-frequency tuning maps.
+
+Key idea: both detectors are a linear stage followed by a multiplication or squaring; Reichardt detectors are tuned to temporal frequency rather than speed, and both models predict the reversed percept for reverse-phi motion.

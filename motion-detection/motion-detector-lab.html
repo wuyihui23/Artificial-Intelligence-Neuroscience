@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Motion Detector Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Sans:ital,wght@0,400;0,600;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: bench page — header, stimulus strip, two detector "rigs" side by side (fly Reichardt | primate motion energy), then population kymographs and tuning maps in matching pairs */
+:root{
+  --bg:#f1f3f6; --panel:#ffffff; --ink:#151c26; --muted:#5a6575; --line:#d5dbe3;
+  --right:#1f6fb2; --left:#d9822b; --neutral:#eef1f5; --stim0:#0d1117; --stim1:#f4f6f9;
+  --f-display:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+  --f-body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#10151c; --panel:#171e27; --ink:#e3e8ef; --muted:#93a0b1; --line:#2a3441;
+  --right:#5aa6e6; --left:#f0a35a; --neutral:#1c242f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#10151c; --panel:#171e27; --ink:#e3e8ef; --muted:#93a0b1; --line:#2a3441;
+  --right:#5aa6e6; --left:#f0a35a; --neutral:#1c242f; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding:28px max(16px,env(safe-area-inset-right,0px)) 48px max(16px,env(safe-area-inset-left,0px))}
+.wrap{max-width:1200px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+header{display:flex;flex-direction:column;gap:8px;max-width:76ch}
+.eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,5vw,46px);line-height:1.02;margin:0;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:600;font-size:22px;line-height:1.15;margin:0;text-wrap:balance}
+h3{font-family:var(--f-body);font-weight:600;font-size:14px;margin:0}
+p{margin:0}
+.lede{color:var(--muted);font-size:16px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:860px){.row2{grid-template-columns:minmax(0,1fr)}}
+.stimrow{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px}
+@media (max-width:860px){.stimrow{grid-template-columns:minmax(0,1fr)}}
+.controls{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px 16px}
+.ctl{display:flex;flex-direction:column;gap:3px;min-width:0}
+.ctl label{display:flex;justify-content:space-between;gap:8px;font-size:13px;color:var(--muted)}
+.ctl output{font-family:var(--f-mono);color:var(--ink);font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--ink)}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+button{font-family:var(--f-body);font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:6px;padding:6px 11px;cursor:pointer}
+button:hover{border-color:var(--muted)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--right);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{font-family:var(--f-mono);font-size:12.5px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.chip.dir-right{border-color:var(--right);color:var(--right)}
+.chip.dir-left{border-color:var(--left);color:var(--left)}
+.chip.dir-none{color:var(--muted)}
+.eq{font-family:var(--f-mono);font-size:12.5px;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px;overflow-x:auto;white-space:pre;line-height:1.6}
+canvas{width:100%;display:block;border-radius:6px;background:var(--neutral)}
+figure{margin:0;display:flex;flex-direction:column;gap:6px;min-width:0}
+figcaption,.note{font-size:12.5px;color:var(--muted)}
+.sw{display:inline-block;width:11px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:4px}
+.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.filters figure figcaption{text-align:center}
+.diagram{width:100%;max-width:420px;height:auto;display:block}
+.diagram text{font-family:var(--f-mono);font-size:12px;fill:var(--ink)}
+.diagram .box{fill:var(--bg);stroke:var(--muted)}
+.diagram .wire{stroke:var(--muted);fill:none;stroke-width:1.4}
+footer{font-size:12.5px;color:var(--muted);max-width:90ch}
+.notes{display:flex;flex-direction:column;gap:8px;max-width:72ch}
+@media (prefers-reduced-motion: reduce){*{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <span class="eyebrow">Visual motion · fly T4/T5 vs primate V1</span>
+  <h1>Motion Detector Lab</h1>
+  <p class="lede">The same moving pattern drives two classic direction detectors: the <b>Reichardt correlator</b> (Hassenstein &amp; Reichardt 1956, insects) and the <b>motion energy model</b> (Adelson &amp; Bergen 1985, primate V1). Change the stimulus and watch where they agree and where they differ. <span style="color:var(--right)">Blue = rightward</span>, <span style="color:var(--left)">orange = leftward</span>.</p>
+</header>
+
+<!-- ===== Stimulus ===== -->
+<section class="stimrow" aria-labelledby="h-stim">
+  <div class="panel">
+    <h2 id="h-stim">Stimulus</h2>
+    <div class="seg" role="group" aria-label="Stimulus type">
+      <button id="st-grating" aria-pressed="true">Drifting grating</button>
+      <button id="st-bar" aria-pressed="false">Moving bar</button>
+      <button id="st-dots" aria-pressed="false">Random dots</button>
+      <button id="st-rphi" aria-pressed="false">Reverse-phi dots</button>
+      <button id="st-flicker" aria-pressed="false">Counterphase flicker</button>
+    </div>
+    <div class="controls">
+      <div class="ctl"><label for="speed">Speed <output id="speedO"></output></label><input id="speed" type="range" min="-40" max="40" step="0.5" value="8"></div>
+      <div class="ctl"><label for="sf">Spatial frequency <output id="sfO"></output></label><input id="sf" type="range" min="0.05" max="1" step="0.01" value="0.25"></div>
+      <div class="ctl"><label for="con">Contrast <output id="conO"></output></label><input id="con" type="range" min="0" max="1" step="0.01" value="0.8"></div>
+      <div class="ctl"><label for="noise">Receptor noise <output id="noiseO"></output></label><input id="noise" type="range" min="0" max="1" step="0.01" value="0.1"></div>
+    </div>
+    <div class="chips"><span class="chip">temporal freq <b id="tfO"></b></span><button id="pause">Pause</button></div>
+    <p class="note" id="stimNote"></p>
+  </div>
+  <div class="panel">
+    <figure>
+      <canvas id="kStim" height="170" aria-label="Space-time plot of the stimulus"></canvas>
+      <figcaption>Space–time plot: position across (32°), time down (last 2 s, newest at the bottom). A rightward-moving pattern is a stripe tilted down to the right. Motion is orientation in space-time; both detectors measure that tilt.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===== Detectors ===== -->
+<section class="row2" aria-label="Detectors">
+  <div class="panel">
+    <span class="eyebrow">Fly · T4/T5 cells</span>
+    <h2>Reichardt correlator</h2>
+    <svg class="diagram" viewBox="0 0 420 175" role="img" aria-label="Reichardt detector wiring: two receptors A and B, each delayed by a low-pass filter tau, cross-multiplied and subtracted">
+      <path class="wire" d="M70 34 V58 M330 34 V58"></path>
+      <path class="wire" d="M70 40 H250 V99"></path>
+      <path class="wire" d="M330 48 H150 V99"></path>
+      <path class="wire" d="M70 84 V112 H126"></path>
+      <path class="wire" d="M330 84 V112 H274"></path>
+      <path class="wire" d="M148 124 L190 143 M252 124 L210 143"></path>
+      <path class="wire" d="M214 154 H246"></path>
+      <rect class="box" x="40" y="8" width="60" height="26" rx="4"></rect><text x="70" y="25" text-anchor="middle">A</text>
+      <rect class="box" x="300" y="8" width="60" height="26" rx="4"></rect><text x="330" y="25" text-anchor="middle">B</text>
+      <text x="200" y="25" text-anchor="middle" style="fill:var(--muted)">← Δx →</text>
+      <rect class="box" x="40" y="58" width="60" height="26" rx="4"></rect><text x="70" y="75" text-anchor="middle">τ</text>
+      <rect class="box" x="300" y="58" width="60" height="26" rx="4"></rect><text x="330" y="75" text-anchor="middle">τ</text>
+      <circle cx="140" cy="112" r="14" class="box"></circle><text x="140" y="116" text-anchor="middle">×</text>
+      <circle cx="260" cy="112" r="14" class="box"></circle><text x="260" y="116" text-anchor="middle">×</text>
+      <circle cx="200" cy="154" r="14" class="box"></circle><text x="200" y="158" text-anchor="middle">−</text>
+      <text x="252" y="158">R = τA·B − A·τB</text>
+      <text x="96" y="140" style="fill:var(--right)">τA·B</text><text x="276" y="140" style="fill:var(--left)">A·τB</text>
+    </svg>
+    <div class="controls">
+      <div class="ctl"><label for="tau">Delay filter τ <output id="tauO"></output></label><input id="tau" type="range" min="10" max="200" step="1" value="50"></div>
+      <div class="ctl"><label for="dx">Receptor spacing Δx <output id="dxO"></output></label><input id="dx" type="range" min="0.5" max="5" step="0.25" value="1"></div>
+    </div>
+    <div class="chips"><span class="chip" id="rDir"></span><span class="chip">mean output <b id="rMean"></b></span></div>
+    <figure>
+      <canvas id="trR" height="210" aria-label="Signals inside one Reichardt detector"></canvas>
+      <figcaption>One detector in the middle of the strip, last 2 s. Each half multiplies one delayed input with the other, undelayed one; the difference R is positive for rightward motion.</figcaption>
+    </figure>
+  </div>
+
+  <div class="panel">
+    <span class="eyebrow">Primate · V1 complex cells</span>
+    <h2>Motion energy</h2>
+    <div class="filters">
+      <figure><canvas id="fRe" height="80"></canvas><figcaption>Right, even</figcaption></figure>
+      <figure><canvas id="fRo" height="80"></canvas><figcaption>Right, odd</figcaption></figure>
+      <figure><canvas id="fLe" height="80"></canvas><figcaption>Left, even</figcaption></figure>
+      <figure><canvas id="fLo" height="80"></canvas><figcaption>Left, odd</figcaption></figure>
+    </div>
+    <p class="note">Space–time receptive fields (x across, past 240 ms down to now). Each is tilted like a moving stripe. Squaring and adding an even/odd pair gives phase-independent energy.</p>
+    <div class="controls">
+      <div class="ctl"><label for="f0">Preferred spatial freq <output id="f0O"></output></label><input id="f0" type="range" min="0.1" max="0.8" step="0.01" value="0.25"></div>
+      <div class="ctl"><label for="w0">Preferred temporal freq <output id="w0O"></output></label><input id="w0" type="range" min="1" max="10" step="0.1" value="3"></div>
+    </div>
+    <div class="chips"><span class="chip" id="eDir"></span><span class="chip">mean output <b id="eMean"></b></span></div>
+    <figure>
+      <canvas id="trE" height="210" aria-label="Signals inside one motion energy unit"></canvas>
+      <figcaption>One unit in the middle of the strip, last 2 s. E = even² + odd² for each direction; opponent energy = E<sub>right</sub> − E<sub>left</sub>.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===== Population ===== -->
+<section class="row2" aria-label="Population of detectors">
+  <div class="panel">
+    <h3>Population: Reichardt detectors across the strip</h3>
+    <figure>
+      <canvas id="kR" height="150" aria-label="Local Reichardt outputs across space over time"></canvas>
+      <figcaption>Each column is one detector (like an array of T4/T5 cells). Summing columns is what lobula-plate tangential cells do.</figcaption>
+    </figure>
+  </div>
+  <div class="panel">
+    <h3>Population: motion energy units across the strip</h3>
+    <figure>
+      <canvas id="kE" height="150" aria-label="Local opponent energy across space over time"></canvas>
+      <figcaption>Each column is one opponent-energy unit (like a row of V1 complex cells feeding MT).</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===== Tuning ===== -->
+<section class="row2" aria-label="Tuning">
+  <div class="panel">
+    <h3>Tuning map: Reichardt</h3>
+    <figure>
+      <canvas id="mR" height="240" aria-label="Reichardt response over spatial and temporal frequency"></canvas>
+      <figcaption>Steady-state response to rightward gratings. The peak is a horizontal band at temporal frequency 1/(2πτ), whatever the spatial frequency: the detector is tuned to <b>temporal frequency</b>, not speed. Above 1/(2Δx) the sign flips: spatial aliasing, as in the fly eye. Grey diagonals are constant speeds. Ring = current grating.</figcaption>
+    </figure>
+  </div>
+  <div class="panel">
+    <h3>Tuning map: motion energy</h3>
+    <figure>
+      <canvas id="mE" height="240" aria-label="Motion energy response over spatial and temporal frequency"></canvas>
+      <figcaption>The unit responds near one spatial and one temporal frequency, so it prefers one speed (w0/f0) only around its own spatial frequency. Real MT cells combine many such units to become speed-tuned.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<section class="panel" aria-labelledby="h-speed">
+  <h3 id="h-speed">Response vs speed at the current spatial frequency</h3>
+  <figure>
+    <canvas id="spd" height="200" aria-label="Response as a function of speed"></canvas>
+    <figcaption><span class="sw" style="background:var(--ink)"></span>Reichardt · <span class="sw" style="background:var(--muted)"></span>motion energy (dashed). Each curve is normalized to its own maximum; the vertical line marks the current speed. Move the spatial-frequency slider: the Reichardt peak speed shifts, because it keeps temporal frequency fixed.</figcaption>
+  </figure>
+</section>
+
+<section class="row2" aria-label="Notes">
+  <div class="notes">
+    <h2>What to try</h2>
+    <p><b>Counterphase flicker</b> is the sum of a left- and a right-moving grating. Both models give a mean of zero, though single detectors still fluctuate.</p>
+    <p><b>Reverse-phi dots</b> jump rightward while their contrast inverts at every step. People see them move <i>leftward</i>, flies turn leftward, and both models also signal leftward. That is strong evidence that real motion detection multiplies (correlates) signals.</p>
+    <p><b>Moving bar vs grating:</b> the Reichardt output for a grating is steady, while for a bar or dots it comes in bursts, because the correlation is only nonzero when an edge passes.</p>
+    <p><b>Slow the delay τ</b> and the Reichardt band moves to lower temporal frequencies. Fly T4/T5 cells peak at about 1–3 Hz, so τ is roughly 50–150 ms.</p>
+  </div>
+  <div class="notes">
+    <h2>The two models in equations</h2>
+    <div class="eq">Reichardt (grating, contrast c, spatial freq f, temporal freq ω):
+R = c² · sin(2π f Δx) · ωτ / (1 + ω²τ²)
+peak at ω = 1/τ   (temporal-frequency tuning)
+
+Motion energy:
+E_dir = (g_even,dir ∗ s)² + (g_odd,dir ∗ s)²
+opponent = E_right − E_left</div>
+    <p>Both are a linear stage followed by a multiplication or squaring. For gratings their opponent outputs are mathematically equivalent (van Santen &amp; Sperling 1985). They differ in filter shapes, so their tuning maps look different here.</p>
+  </div>
+</section>
+
+<footer>Simulation: 1D strip of 32° sampled every 0.25°, time step 2 ms. Reichardt arms use a first-order low-pass delay; motion-energy filters are space–time Gabors (σx = 0.6/f0, σt = 60 ms, centred 120 ms in the past). Values are in model units, normalized so a full-contrast optimal grating gives 1. Real T4/T5 cells combine Reichardt-like enhancement with Barlow–Levick null-direction suppression (Haag et al. 2016).</footer>
+</div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+let C={};
+function readColors(){const s=getComputedStyle(document.documentElement);['bg','panel','ink','muted','line','right','left','neutral','stim0','stim1'].forEach(k=>C[k]=s.getPropertyValue('--'+k).trim());buildLUT();mapsDirty=true;}
+function hex2rgb(h){h=h.replace('#','');if(h.length===3)h=h.split('').map(c=>c+c).join('');const n=parseInt(h,16);return[(n>>16)&255,(n>>8)&255,n&255];}
+let LUT=null;
+function buildLUT(){const R=hex2rgb(C.right),L=hex2rgb(C.left),N=hex2rgb(C.neutral);LUT=new Uint8ClampedArray(256*3);
+  for(let i=0;i<256;i++){const v=(i-127.5)/127.5;const t=Math.min(1,Math.abs(v));const T=v>=0?R:L;for(let k=0;k<3;k++)LUT[i*3+k]=Math.round(N[k]+(T[k]-N[k])*Math.pow(t,0.8));}}
+function divColor(v){const i=Math.max(0,Math.min(255,Math.round((v+1)*127.5)));return[LUT[i*3],LUT[i*3+1],LUT[i*3+2]];}
+function fit(cv){if(!cv.dataset.h){cv.dataset.h=cv.getAttribute('height');cv.style.height=cv.dataset.h+'px';}
+  const d=devicePixelRatio||1,r=cv.getBoundingClientRect();const w=Math.max(10,Math.round(r.width*d)),h=Math.round(+cv.dataset.h*d);
+  if(cv.width!==w||cv.height!==h){cv.width=w;cv.height=h;}const ctx=cv.getContext('2d');ctx.setTransform(1,0,0,1,0,0);return{ctx,W:cv.width,H:cv.height,d};}
+const MONO=()=>getComputedStyle(document.body).getPropertyValue('--f-mono')||'monospace';
+
+/* ---------- model constants ---------- */
+const LEN=32, NX=128, DXd=LEN/NX, DT=0.002, HT=60, HDT=0.004; // energy history: 60 taps at 4 ms
+const ROWS=200, ROWDT=0.01; // display rows: 2 s at 10 ms
+const NE=32; // energy units across strip
+const P={type:'grating',speed:8,sf:0.25,con:0.8,noise:0.1,tau:0.05,dx:1,f0:0.25,w0:3,paused:false};
+let t=0, s=new Float32Array(NX), D=new Float32Array(NX);
+const hist=[];for(let i=0;i<HT;i++)hist.push(new Float32Array(NX));let hIdx=0;
+let dotsPat=new Float32Array(NX);function newDots(){for(let i=0;i<NX;i+=4){const v=Math.random()<0.5?-1:1;for(let k=0;k<4&&i+k<NX;k++)dotsPat[i+k]=v;}}newDots();
+let FX=0,FRe,FRo,FLe,FLo;
+function buildFilters(){const sx=0.6/P.f0;FX=Math.min(60,Math.ceil(3*sx/DXd));const nx=2*FX+1;FRe=new Float32Array(nx*HT);FRo=new Float32Array(nx*HT);FLe=new Float32Array(nx*HT);FLo=new Float32Array(nx*HT);
+  let sum=0;const env=new Float32Array(nx*HT);
+  for(let j=0;j<HT;j++){const lag=j*HDT;for(let k=-FX;k<=FX;k++){const x=k*DXd;const e=Math.exp(-x*x/(2*sx*sx))*Math.exp(-Math.pow(lag-0.12,2)/(2*0.06*0.06));env[j*nx+k+FX]=e;sum+=e;}}
+  for(let j=0;j<HT;j++){const lag=j*HDT;for(let k=-FX;k<=FX;k++){const x=k*DXd,i=j*nx+k+FX,e=env[i]*2/sum;
+    const pr=2*Math.PI*(P.f0*x+P.w0*lag),pl=2*Math.PI*(P.f0*x-P.w0*lag);FRe[i]=e*Math.cos(pr);FRo[i]=e*Math.sin(pr);FLe[i]=e*Math.cos(pl);FLo[i]=e*Math.sin(pl);}}
+  filtersDirty=true;}
+let filtersDirty=true,mapsDirty=true;
+function gauss(){let u=0,v=0;while(u===0)u=Math.random();v=Math.random();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function stim(x,tt){const c=P.con,v=P.speed,f=P.sf;
+  switch(P.type){
+    case 'grating':return c*Math.sin(2*Math.PI*(f*x-f*v*tt));
+    case 'flicker':{const tf=Math.max(0.5,Math.abs(f*v));return c*Math.sin(2*Math.PI*f*x)*Math.cos(2*Math.PI*tf*tt);}
+    case 'bar':{const ctr=((v*tt)%LEN+LEN)%LEN;let d=Math.abs(x-ctr);d=Math.min(d,LEN-d);return d<0.75?c:0;}
+    case 'dots':{const p=(((x-v*tt)%LEN)+LEN)%LEN;return c*dotsPat[Math.floor(p/DXd)%NX];}
+    case 'rphi':{const step=Math.min(0.3,Math.max(0.03,1/Math.max(0.1,Math.abs(v)))),k=Math.floor(tt/step);const p=(((x-Math.sign(v)*k)%LEN)+LEN)%LEN;return c*dotsPat[Math.floor(p/DXd)%NX]*(k%2?-1:1);}
+  }return 0;}
+/* ---------- state for display ---------- */
+const rowStim=[],rowR=[],rowE=[];const trR=[],trE=[];
+let rAvg=0,eAvg=0,stepCount=0,eLocal=new Float32Array(NE),eCenter={re:0,ro:0,le:0,lo:0};
+function energyAt(i0){const nx=2*FX+1;let re=0,ro=0,le=0,lo=0;
+  for(let j=0;j<HT;j++){const fr=hist[(hIdx-j+HT*4)%HT];const base=j*nx;
+    for(let k=-FX;k<=FX;k++){const v=fr[(i0+k+NX*4)%NX];const q=base+k+FX;re+=FRe[q]*v;ro+=FRo[q]*v;le+=FLe[q]*v;lo+=FLo[q]*v;}}
+  return{re,ro,le,lo};}
+function step(){
+  for(let i=0;i<NX;i++){s[i]=stim(i*DXd,t)+(P.noise>0?P.noise*0.5*gauss():0);}
+  const a=DT/P.tau;for(let i=0;i<NX;i++)D[i]+=a*(s[i]-D[i]);
+  t+=DT;stepCount++;
+  if(stepCount%2===0){hIdx=(hIdx+1)%HT;hist[hIdx].set(s);}
+  if(stepCount%5===0)record();
+}
+const kOff=()=>Math.max(1,Math.round(P.dx/DXd));
+function record(){
+  const k=kOff();
+  // stimulus row
+  rowStim.push(Float32Array.from(s));if(rowStim.length>ROWS)rowStim.shift();
+  // Reichardt row (all positions)
+  const rr=new Float32Array(NX);for(let i=0;i<NX;i++){const j=(i+k)%NX;rr[i]=2*(D[i]*s[j]-s[i]*D[j]);}
+  rowR.push(rr);if(rowR.length>ROWS)rowR.shift();
+  const ic=NX/2-Math.floor(k/2),jc=(ic+k)%NX;
+  const rc=2*(D[ic]*s[jc]-s[ic]*D[jc]);
+  // energy units
+  const er=new Float32Array(NE);for(let u=0;u<NE;u++){const e=energyAt(Math.round(u*NX/NE));er[u]=(e.re*e.re+e.ro*e.ro)-(e.le*e.le+e.lo*e.lo);}
+  rowE.push(er);if(rowE.length>ROWS)rowE.shift();
+  eCenter=energyAt(NX/2);const ER=eCenter.re**2+eCenter.ro**2,EL=eCenter.le**2+eCenter.lo**2,eo=ER-EL;
+  trR.push([s[ic],s[jc],D[ic],D[jc],2*D[ic]*s[jc],2*s[ic]*D[jc],rc]);if(trR.length>ROWS)trR.shift();
+  trE.push([eCenter.re,eCenter.ro,ER,EL,eo]);if(trE.length>ROWS)trE.shift();
+  // spatially averaged outputs, leaky 1 s
+  let rm=0;for(let i=0;i<NX;i++)rm+=rr[i];rm/=NX;let em=0;for(let u=0;u<NE;u++)em+=er[u];em/=NE;
+  const al=ROWDT/1.0;rAvg+=al*(rm-rAvg);eAvg+=al*(em-eAvg);
+}
+/* ---------- analytic tuning ---------- */
+function rTune(f,tf){const w=2*Math.PI*tf;return Math.sin(2*Math.PI*f*P.dx)*2*w*P.tau/(1+w*w*P.tau*P.tau);}
+function eTune(f,tf){const sx=0.6/P.f0,st=0.06;const af=Math.exp(-4*Math.PI*Math.PI*sx*sx*(f-P.f0)**2),afm=Math.exp(-4*Math.PI*Math.PI*sx*sx*(f+P.f0)**2);
+  const R=Math.exp(-4*Math.PI*Math.PI*st*st*(tf-P.w0)**2),L=Math.exp(-4*Math.PI*Math.PI*st*st*(tf+P.w0)**2);
+  return (af*R+afm*L)-(af*L+afm*R);}
+/* ---------- drawing ---------- */
+const off=document.createElement('canvas');
+function drawKymo(id,rows,n,mapFn){const cv=$(id);const{ctx,W,H}=fit(cv);ctx.fillStyle=C.neutral;ctx.fillRect(0,0,W,H);if(!rows.length)return;
+  off.width=n;off.height=ROWS;const octx=off.getContext('2d');const img=octx.createImageData(n,ROWS);const start=ROWS-rows.length;
+  for(let r=0;r<rows.length;r++){const row=rows[r];for(let i=0;i<n;i++){const c=mapFn(row[i]);const p=((start+r)*n+i)*4;img.data[p]=c[0];img.data[p+1]=c[1];img.data[p+2]=c[2];img.data[p+3]=255;}}
+  octx.putImageData(img,0,0);ctx.imageSmoothingEnabled=false;ctx.drawImage(off,0,0,W,H);}
+let S0,S1;function grayMap(v){const t=Math.max(0,Math.min(1,(v+1)/2));return[S0[0]+(S1[0]-S0[0])*t,S0[1]+(S1[1]-S0[1])*t,S0[2]+(S1[2]-S0[2])*t];}
+function drawTraces(id,data,lanes){const cv=$(id);const{ctx,W,H,d}=fit(cv);ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);
+  const L=86*d,R=6*d,n=lanes.length,lh=(H-4*d)/n;ctx.font=`${11*d}px ${MONO()}`;
+  lanes.forEach((ln,k)=>{const y0=2*d+k*lh,mid=y0+lh/2;ctx.strokeStyle=C.line;ctx.lineWidth=1*d;ctx.beginPath();ctx.moveTo(L,mid);ctx.lineTo(W-R,mid);ctx.stroke();
+    ctx.fillStyle=C.muted;ctx.textAlign='right';ctx.fillText(ln.name,L-8*d,mid+4*d);
+    ctx.strokeStyle=ln.color||C.ink;ctx.lineWidth=(ln.bold?2:1.4)*d;ctx.beginPath();
+    for(let i=0;i<data.length;i++){const x=L+(W-L-R)*(i+ROWS-data.length)/(ROWS-1);let v=data[i][ln.idx]/ln.scale;v=Math.max(-1,Math.min(1,v));const y=mid-v*lh*0.42;i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();});}
+function drawFilter(id,F){const cv=$(id);const{ctx,W,H}=fit(cv);const nx=2*FX+1;off.width=nx;off.height=HT;const octx=off.getContext('2d');const img=octx.createImageData(nx,HT);
+  let mx=0;for(let i=0;i<F.length;i++)mx=Math.max(mx,Math.abs(F[i]));
+  for(let j=0;j<HT;j++)for(let k=0;k<nx;k++){const v=F[j*nx+k]/mx;const c=grayMap(v);const p=((HT-1-j)*nx+k)*4;img.data[p]=c[0];img.data[p+1]=c[1];img.data[p+2]=c[2];img.data[p+3]=255;}
+  octx.putImageData(img,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(off,0,0,W,H);}
+const SFmin=0.05,SFmax=1,TFmin=0.25,TFmax=32;
+function drawMap(id,fn){const cv=$(id);const{ctx,W,H,d}=fit(cv);ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);
+  const L=46*d,B=34*d,T=8*d,Rm=10*d,pw=W-L-Rm,ph=H-T-B;const N=90;off.width=N;off.height=N;const octx=off.getContext('2d');const img=octx.createImageData(N,N);
+  const vals=new Float32Array(N*N);let mx=1e-9;
+  for(let j=0;j<N;j++)for(let i=0;i<N;i++){const f=SFmin*Math.pow(SFmax/SFmin,(i+.5)/N),tf=TFmin*Math.pow(TFmax/TFmin,1-(j+.5)/N);const v=fn(f,tf);vals[j*N+i]=v;mx=Math.max(mx,Math.abs(v));}
+  for(let q=0;q<N*N;q++){const c=divColor(vals[q]/mx);img.data[q*4]=c[0];img.data[q*4+1]=c[1];img.data[q*4+2]=c[2];img.data[q*4+3]=255;}
+  octx.putImageData(img,0,0);ctx.imageSmoothingEnabled=true;ctx.drawImage(off,L,T,pw,ph);
+  const X=f=>L+pw*Math.log(f/SFmin)/Math.log(SFmax/SFmin),Y=tf=>T+ph*(1-Math.log(tf/TFmin)/Math.log(TFmax/TFmin));
+  // iso-speed lines
+  ctx.save();ctx.beginPath();ctx.rect(L,T,pw,ph);ctx.clip();ctx.strokeStyle=C.muted;ctx.globalAlpha=.55;ctx.setLineDash([3*d,3*d]);ctx.lineWidth=1*d;ctx.font=`${10*d}px ${MONO()}`;ctx.fillStyle=C.muted;
+  [2,8,32,128].forEach(v=>{ctx.beginPath();ctx.moveTo(X(SFmin),Y(v*SFmin));ctx.lineTo(X(SFmax),Y(v*SFmax));ctx.stroke();const fx=Math.min(SFmax,TFmax/v)*0.8;if(v*fx>=TFmin)ctx.fillText(v+'°/s',X(fx)+3*d,Y(v*fx)-3*d);});
+  ctx.restore();
+  ctx.strokeStyle=C.line;ctx.lineWidth=1*d;ctx.strokeRect(L,T,pw,ph);
+  ctx.fillStyle=C.muted;ctx.font=`${11*d}px ${MONO()}`;ctx.textAlign='center';[0.05,0.1,0.2,0.5,1].forEach(f=>ctx.fillText(f,X(f),H-B+15*d));ctx.fillText('spatial frequency (cycles/°)',L+pw/2,H-4*d);
+  ctx.textAlign='right';[0.25,1,4,16,32].forEach(tf=>ctx.fillText(tf,L-6*d,Y(tf)+4*d));
+  ctx.save();ctx.translate(12*d,T+ph/2);ctx.rotate(-Math.PI/2);ctx.textAlign='center';ctx.fillText('temporal freq (Hz)',0,0);ctx.restore();
+  if(P.type==='grating'||P.type==='flicker'){const tf=Math.abs(P.sf*P.speed);if(tf>=TFmin&&tf<=TFmax){ctx.strokeStyle=C.ink;ctx.lineWidth=2*d;ctx.beginPath();ctx.arc(X(P.sf),Y(tf),6*d,0,7);ctx.stroke();ctx.strokeStyle=C.panel;ctx.lineWidth=1*d;ctx.beginPath();ctx.arc(X(P.sf),Y(tf),8.5*d,0,7);ctx.stroke();}}}
+function drawSpeed(){const cv=$('spd');const{ctx,W,H,d}=fit(cv);ctx.fillStyle=C.panel;ctx.fillRect(0,0,W,H);
+  const L=40*d,B=26*d,T=10*d,Rm=10*d,pw=W-L-Rm,ph=H-T-B;const X=v=>L+pw*(v+40)/80,Y=r=>T+ph*(1-(r+1)/2);
+  ctx.strokeStyle=C.line;ctx.lineWidth=1*d;[-1,0,1].forEach(r=>{ctx.beginPath();ctx.moveTo(L,Y(r));ctx.lineTo(L+pw,Y(r));ctx.stroke();});
+  [-40,-20,0,20,40].forEach(v=>{ctx.beginPath();ctx.moveTo(X(v),T);ctx.lineTo(X(v),T+ph);ctx.stroke();});
+  const curve=(fn,dash,col)=>{const pts=[];let mx=1e-9;for(let i=0;i<=400;i++){const v=-40+80*i/400,tf=P.sf*v;const r=tf>=0?fn(P.sf,tf):-fn(P.sf,-tf);pts.push([v,r]);mx=Math.max(mx,Math.abs(r));}
+    ctx.strokeStyle=col;ctx.setLineDash(dash);ctx.lineWidth=2*d;ctx.beginPath();pts.forEach(([v,r],i)=>{const x=X(v),y=Y(r/mx);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);};
+  curve(rTune,[],C.ink);curve(eTune,[6*d,4*d],C.muted);
+  ctx.strokeStyle=C.right;ctx.lineWidth=1.5*d;ctx.beginPath();ctx.moveTo(X(P.speed),T);ctx.lineTo(X(P.speed),T+ph);ctx.stroke();
+  ctx.fillStyle=C.muted;ctx.font=`${11*d}px ${MONO()}`;ctx.textAlign='center';[-40,-20,0,20,40].forEach(v=>ctx.fillText(v+'°/s',X(v),H-6*d));
+  ctx.textAlign='right';ctx.fillText('+1',L-6*d,Y(1)+4*d);ctx.fillText('0',L-6*d,Y(0)+4*d);ctx.fillText('−1',L-6*d,Y(-1)+4*d);}
+function dirChip(el,v,thr){if(v>thr){el.textContent='→ rightward';el.className='chip dir-right';}else if(v<-thr){el.textContent='← leftward';el.className='chip dir-left';}else{el.textContent='no net direction';el.className='chip dir-none';}}
+/* ---------- controls ---------- */
+const notes={grating:'A sine grating drifting at the set speed. Temporal frequency = spatial frequency × speed.',
+  bar:'One bright 1.5° bar on grey, moving at the set speed (spatial frequency is ignored).',
+  dots:'A random pattern of 1° black and white dots sliding at the set speed (spatial frequency is ignored).',
+  rphi:'The dot pattern jumps 1° at a time in the set direction (faster speed = shorter pauses), and its contrast inverts at every jump.',
+  flicker:'A standing grating whose contrast oscillates. It contains equal left- and right-moving parts.'};
+function syncUI(){P.speed=+$('speed').value;P.sf=+$('sf').value;P.con=+$('con').value;P.noise=+$('noise').value;
+  const tauNew=+$('tau').value/1000,dxNew=+$('dx').value,f0New=+$('f0').value,w0New=+$('w0').value;
+  const rebuild=(f0New!==P.f0||w0New!==P.w0);P.tau=tauNew;P.dx=dxNew;P.f0=f0New;P.w0=w0New;if(rebuild)buildFilters();
+  $('speedO').textContent=(P.speed>0?'+':'')+P.speed.toFixed(1)+' °/s';$('sfO').textContent=P.sf.toFixed(2)+' c/°';$('conO').textContent=Math.round(P.con*100)+'%';$('noiseO').textContent=P.noise.toFixed(2);
+  $('tauO').textContent=Math.round(P.tau*1000)+' ms · peak '+(1/(2*Math.PI*P.tau)).toFixed(1)+' Hz';$('dxO').textContent=P.dx.toFixed(2)+'°';
+  $('f0O').textContent=P.f0.toFixed(2)+' c/°';$('w0O').textContent=P.w0.toFixed(1)+' Hz · '+(P.w0/P.f0).toFixed(0)+' °/s';
+  const tf=(P.type==='grating'||P.type==='flicker')?Math.abs(P.sf*P.speed).toFixed(2)+' Hz':'broadband';$('tfO').textContent=tf;
+  $('stimNote').textContent=notes[P.type];mapsDirty=true;}
+['speed','sf','con','noise','tau','dx','f0','w0'].forEach(id=>$(id).addEventListener('input',syncUI));
+['grating','bar','dots','rphi','flicker'].forEach(tp=>$('st-'+tp).addEventListener('click',()=>{P.type=tp;newDots();
+  ['grating','bar','dots','rphi','flicker'].forEach(o=>$('st-'+o).setAttribute('aria-pressed',o===tp));syncUI();}));
+$('pause').addEventListener('click',()=>{P.paused=!P.paused;$('pause').textContent=P.paused?'Resume':'Pause';$('pause').setAttribute('aria-pressed',P.paused);});
+/* ---------- loop ---------- */
+readColors();S0=hex2rgb(C.stim0);S1=hex2rgb(C.stim1);
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',readColors);
+new MutationObserver(readColors).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+buildFilters();syncUI();
+for(let k=0;k<1000;k++)step(); // warm start: 2 s of history
+let last=performance.now();
+function frame(now){const el=Math.min(0.04,(now-last)/1000);last=now;
+  if(!P.paused){const n=Math.round(el/DT*(reduceMotion?0.5:1));for(let k=0;k<n;k++)step();}
+  drawKymo('kStim',rowStim,NX,grayMap);
+  drawKymo('kR',rowR,NX,v=>divColor(v/Math.max(0.05,P.con*P.con)));
+  drawKymo('kE',rowE,NE,v=>divColor(v/Math.max(0.05,P.con*P.con)));
+  const sc=Math.max(0.05,P.con*P.con);
+  drawTraces('trR',trR,[{name:'A',idx:0,scale:1},{name:'B',idx:1,scale:1},{name:'τA',idx:2,scale:1},{name:'τB',idx:3,scale:1},{name:'τA·B',idx:4,scale:sc*2,color:C.right},{name:'A·τB',idx:5,scale:sc*2,color:C.left},{name:'R',idx:6,scale:sc*2,bold:true}]);
+  drawTraces('trE',trE,[{name:'even→',idx:0,scale:Math.max(0.05,P.con)},{name:'odd→',idx:1,scale:Math.max(0.05,P.con)},{name:'E right',idx:2,scale:sc,color:C.right},{name:'E left',idx:3,scale:sc,color:C.left},{name:'opponent',idx:4,scale:sc,bold:true}]);
+  if(filtersDirty){drawFilter('fRe',FRe);drawFilter('fRo',FRo);drawFilter('fLe',FLe);drawFilter('fLo',FLo);filtersDirty=false;}
+  if(mapsDirty){drawMap('mR',rTune);drawMap('mE',eTune);drawSpeed();mapsDirty=false;}
+  const thr=0.03*Math.max(0.05,P.con*P.con);dirChip($('rDir'),rAvg,thr);dirChip($('eDir'),eAvg,thr);
+  $('rMean').textContent=(rAvg>=0?'+':'')+rAvg.toFixed(3);$('eMean').textContent=(eAvg>=0?'+':'')+eAvg.toFixed(3);
+  requestAnimationFrame(frame);}
+addEventListener('resize',()=>{mapsDirty=true;filtersDirty=true;});
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
